@@ -8,10 +8,15 @@ else
 	mkdir "$config_home"
 fi
 
-runtime_config="$HOME/.config/medialib/medialibrc"
+runtime_config="$HOME/.config/medialib/.medialibrc"
 source "$runtime_config"
+
+rename_config="$config_home/.medialib-rename"
+
 tv_source="$HOME/.config/medialib/.tv-source"
+tv_link="$(cat $config_home/.linkdirtv)"
 mov_source="$HOME/.config/medialib/.mov-source"
+mov_link=
 exclude_dirs="$HOME/.config/medialib/.exclude"
 
 tv-check_sources() {
@@ -33,6 +38,11 @@ tv-check_sources() {
 					echo "Directories do not exists, reconfigure them"
 				fi
 			done
+	fi
+	if [ -d "$tv_link" ] ; then
+		echo "Success checking link directory: $tv_link"
+	else
+		echo "Symlink directory does not exist, set it using -L"
 	fi
 
 }
@@ -98,7 +108,8 @@ tv-write_config() {
 					filter_source=$(grep "$file/Season $season_number" "$tv_active")
 					#echo "$filter_source"
 					if [ "$file/Season $season_number" == "$filter_source" ] ; then
-						echo 'Already in the config'
+						#echo 'Already in the config'
+						:
 					else
 						echo "$file/Season $season_number" >> "$tv_active"
 						echo "$season_number" >> "$tv_active"
@@ -108,7 +119,8 @@ tv-write_config() {
 					filter_source=$(grep "$file/Season_$season_number" "$tv_active")
 					#echo "$filter_source"
 					if [ "$file/Season_$season_number" == "$filter_source" ] ; then
-						echo 'Already in the config'
+						#echo 'Already in the config'
+						:
 					else
 						echo "$file/Season_$season_number" >> "$tv_active"
 						echo "$season_number" >> "$tv_active"
@@ -122,7 +134,8 @@ tv-write_config() {
 				filter_source=$(grep -F "$file" "$tv_active")
 				#echo "$filter_source"
 				if [ "$file" == "$filter_source" ]; then
-					echo 'Already in the config'
+					#echo 'Already in the config'
+					:
 				else
 					echo "$file" >> "$tv_active"
 					echo "Enter season number" >> "$tv_active"
@@ -131,6 +144,137 @@ tv-write_config() {
 			done
 		done
 	done
+
+}
+
+tv-link_config() {
+
+	mkdir "$tv_link"
+	read_timer=$(wc -l < "$tv_active")
+  	for ((read_num=1; read_num<=read_timer; read_num+=3)); do
+    	dir=$(sed -n "${read_num}p" "$tv_active")
+    	#echo "$dir"
+    	season=$(sed -n "$((read_num+1))p" "$tv_active")
+    	#echo "$season"
+    	tmdb=$(sed -n "$((read_num+2))p" "$tv_active")
+    	#echo "$tmdb"
+    	mkdir -p "$tv_link/$tmdb/Season $season" "$tv_link/$tmdb/Extras"
+    	find "$dir" -type f -name '*.mkv' -print | sort | while read file; do
+    		if echo "$file" | grep -qE '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|AMV|S01OP|S01ED)'; then
+    			#basematch=$(basename "'$file'")
+    			#echo  "This matched the filter: $basematch"
+    			ln -s "$file" "$tv_link/$tmdb/Extras"
+    		else
+    			#basematch=$(basename "'$file'")
+    			#echo "This is a main episode: $file"
+    			ln -s "$file" "$tv_link/$tmdb/Season $season"
+    		fi
+    	done
+    	if [ -d "$dir"/.././'Season 1' ]; then
+    		find "$dir/../" -type f -name '*.mkv' | sort | while read file; do
+    			if echo "$file" | grep -E '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|AMV|S01OP|S01ED)'; then
+    				ln -s "$file" "$tv_link/$tmdb/Extras"
+    			fi
+    		done
+    	fi
+    	find "$dir" -type f -name '*.ass' -print | sort | while read file; do
+    		if echo "$file" | grep -qE '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|RUS|UQW)'; then
+    			#basematch=$(basename "'$file'")
+    			#echo  "This matched the filter: $basematch"
+    			ln -s "$file" "$tv_link/$tmdb/Extras/"
+    		else
+    			#basematch=$(basename "'$file'")
+    			#echo "This is a main episode: $file"
+    			ln -s "$file" "$tv_link/$tmdb/Season $season"
+    		fi
+    	done
+	done
+#	for file in "$linkdir"/*; do
+#		epr=1
+#		snt=20
+#		for ((sn=1; sn<=snt; sn+=1)); do
+#			epr=1
+#			if [ -d "$linkdir/$tmdb/Season $sn" ]; then
+#				for file in "$linkdir"/"$tmdb"/Season\ "$sn"/*; do
+#					snm=$(printf "%02d" "$sn")
+#					ep=$(printf "%02d" "$epr")
+#					mv "$file" "$linkdir/$tmdb/Season $sn/$tmdb S${snm}E${ep}.mkv"
+#					epr=$((epr+1))
+#				done
+#			fi
+#		done
+#	done
+
+
+}
+
+tv-rename_library() {
+
+	: > "$rename_config"
+	if [ -d "$tv_link" ]; then
+		for file in "$tv_link"/*; do
+			echo "$file" >> "$rename_config"
+		done
+	fi
+	sleep 1
+	timer=$(wc -l < "$rename_config")
+	for ((current_show=1; current_show<=timer; current_show+=1)); do
+		animeshow=$(head -n "$current_show" "$rename_config" | tail -n 1)
+		season_timer=20
+   	 	for ((season=1; season<=season_timer; season+=1)); do
+    		episode=1
+    		episode_raw_init=1
+    		if [ -d "$animeshow/Season $season" ]; then
+    			for file in "$animeshow"/Season\ "$season"/*.mkv; do
+   					season_modified=$(printf "%02d" "$season")
+   					episode=$(printf "%02d" "$episode_raw_init")
+   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.mkv" ]; then
+   						:
+   					else
+   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.mkv"
+   				 	fi
+   					episode_raw_init=$((episode_raw_init+1))
+    			done
+    			for file in "$animeshow"/Season\ "$season"/*.ass; do
+   					season_modified=$(printf "%02d" "$season")
+   					episode=$(printf "%02d" "$episode_raw_init")
+   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.ass" ]; then
+   						:
+   					else
+   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.ass"
+   				 	fi
+   					episode_raw_init=$((episode_raw_init+1))
+    			done
+    		fi
+    	done
+	done
+
+
+}
+
+tv-setup_lib() {
+
+	tv-check_sources
+	tv-link_config
+	tv-rename_library
+
+}
+
+tv-setlink_config() {
+
+	if [ -d "$tv_setlink" ]; then
+		echo "$tv_setlink" > "$tv_link"
+	else
+		read -p 'Directory does not exist, create? y or n: ' prompt
+		if [ "$prompt" == y ] || [ "$prompt" == Y ] ; then
+			mkdir -p "$tv_setlink"
+			echo "$tv_setlink" > "$tv_link"
+		else
+			echo 'Directory not created'
+			echo 'tv-setlink failed'
+			exit 1
+		fi
+	fi
 
 }
 
@@ -153,7 +297,7 @@ tv-remove_source() {
 tv-exclude_config() {
 
 	count_config=$(wc -l < "$tv_active")
-	for((i=1; i<=count_config; i+=3)); do
+	for((i=1; i<=count_c/onfig; i+=3)); do
 			current_dir=$(head -n "$i" "$tv_active"| tail -n 1)
 		if [ "$current_dir" == "$(grep -e "$current_dir" "$exclude_dirs")" ]; then
 			:
@@ -182,22 +326,23 @@ help() {
 	echo '	-p			Print current config'
 	echo '	-T			Test Directories in config'
 	echo '	-w			Write to current config file using source-config'
-	echo '	-u			update configs if exclude exists, obey them'
-	echo '	-U			Update without exlusion'
+	#echo '	-u			update configs if exclude exists, obey them'
+	#echo '	-U			Update without exlusion'
 	echo '	-C,			Create symlinks with values defined from config'
 	echo '	-r			Rename symlinked media files'
 	echo '	-R			Rename but ignore custom-rename'
-	echo -e '	-m <config1> <config2> -t <merged> \n				Merges config files'
+	echo -e '	-m <config1> -m <config2> -t <merged> \n				Merges config files'
 	echo '	-e <config>		Add directories defined in config so -w will not append them'
 	echo '	-a			Equivalent of -TCr'
 	echo '	-f <directory>		Add Parent source'
 	echo '	-F <directory>		Remove Parent source'
+	echo '	-L <directory>		Define symlink directory'
 	echo '	-i	<tv/mov>	Set library mode'
-	echo '	-ip			Print current library mode'
+	echo '	-I			Print current library mode'
 }
 
 
-while getopts 'hlpTws:i:c:f:F:e' OPTION; do
+while getopts 'hlpTwICras:i:c:f:F:eL:' OPTION; do
 	case "$OPTION" in
 		h)
 			help
@@ -291,6 +436,46 @@ while getopts 'hlpTws:i:c:f:F:e' OPTION; do
 				echo 'Invalid mode run medialib -i <mode>'
 			fi
 			;;
+		I)
+			echo "Current Mode: $current_mode"
+			;;
+		C)
+			if [ "$current_mode" == tv ]; then
+				tv-link_config
+			elif [ "$current_mode" == mov ]; then
+				mov-link_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		L)
+			tv_setlink="$OPTARG"
+			if [ "$current_mode" == tv ]; then
+				tv-setlink_config
+			elif [ "$current_mode" == mov ]; then
+				mov-setlink_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		r)
+			if [ "$current_mode" == tv ]; then
+				tv-rename_library
+			elif [ "$current_mode" == mov ]; then
+				mov-rename_library
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		a)
+			if [ "$current_mode" == tv ]; then
+				tv-setup_lib
+			elif [ "$current_mode" == mov ]; then
+				mov-setup_lib
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
 		?)
 			echo "Script usage: Work in progress." >&2
 			exit 1
@@ -298,3 +483,5 @@ while getopts 'hlpTws:i:c:f:F:e' OPTION; do
 	esac
 done
 shift "$(($OPTIND -1))"
+
+exit
