@@ -1,0 +1,249 @@
+#!/bin/bash
+
+config_home="$HOME/.config/medialib"
+
+if [ -d "$config_home" ] ; then
+	:
+else
+	mkdir "$config_home"
+fi
+
+runtime_config="$HOME/.config/medialib/medialibrc"
+source "$runtime_config"
+tv_source="$HOME/.config/medialib/.tv-source"
+mov_source="$HOME/.config/medialib/.mov-source"
+
+tv-check_sources() {
+
+	if [ -f "tv_source" ] ; then
+		:
+	else
+		touch "$tv_source"
+	fi
+	if [ $(cat "$tv_source" | wc -l) == 0 ] ; then
+			echo "Sources are empty"
+		else
+			count_tv_source=$(cat "$tv_source" | wc -l)
+			for ((c=1; c<=count_tv_source; c+=1)); do
+					current_source=$(head -n "$c" "$tv_source" | tail -n "$c")
+				if [ -d "$current_source" ] ; then
+					echo "Success"
+				else
+					echo "Directories do not exists, reconfigure them"
+				fi
+			done
+	fi
+
+}
+
+select_mode() {
+
+	if [ "$identify_mode" == tv ] ; then
+			sed -i "s/current_mode=$current_mode/current_mode=tv/" "$runtime_config"
+	elif [ "$identify_mode" == mov ]; then
+			sed -i "s/current_mode=$current_mode/current_mode=mov/" "$runtime_config"
+	else
+			echo 'Invalid mode'
+			exit 1
+	fi
+
+}
+
+tv-select_config() {
+
+	selected_config="$config_home/tv-$config_name"
+	if [ -f "$selected_config" ] ; then
+		sed -i "s/tv_active_conf=$tv_active_conf/tv_active_conf=tv-$config_name/" "$runtime_config"
+	else
+		echo 'Config does not exist.'
+	fi
+
+}
+
+tv-create_config() {
+
+	if [ -d "$config_home" ]; then
+		touch "$config_home/tv-$config_name"
+	else
+		mkdir "$config_home"
+		touch "$config_home/tv-$config_name"
+	fi
+	tv-select_config
+
+}
+
+tv-list_config() {
+
+	echo -e "Available configuration for tv mode:\n 	$(ls "$config_home" | grep -e 'tv')"
+
+}
+
+tv-active_config() {
+
+	echo "Current config: $tv_active"
+
+}
+
+tv-write_config() {
+
+	count_tv_source=$(cat "$tv_source" | wc -l)
+	for ((count=1; c<=count_tv_source; count+=1)); do
+		current_source=$(head -n "$count" | tail -n "$count")
+		for file in "$current_source"/* ; do
+			tmdb="Enter show name here"
+			season_timer=20
+			for ((season_number=1; season_number<=season_timer; season_number+=1)); do
+				if [ -d "$file/Season $season_number" ]  ; then
+					echo "$file/Season $season_number" >> "$tv_active"
+					echo "$season_number" >> "$tv_active"
+					echo "$tmdb" >> "$tv_active"
+				elif [ -d "$file/Season_$season_number" ] ; then
+					echo "$file/Season_$season_number" >> "$tv_activr"
+					echo "$season_number" >> "$tv_active"
+					echo "$tmdb" >> "$tv_active"
+				else
+					:
+				fi
+			done
+			find "$file" -maxdepth 1 -type f -name '*.mkv' -print -quit | while read basefile ; do
+				echo "$file" >> "$tv_active"
+				echo "Enter season number" >> "$tv_active"
+				echo "$tmdb" >> "$tv_active"
+			done
+		done
+	done
+
+}
+
+tv-add_source() {
+
+	if [ -d "$add_source" ]; then
+		echo "$add_source" >> "$tv_source"
+	else
+		echo 'Directory does not exist'
+	fi
+
+}
+
+tv-remove_source() {
+
+	sed -i "s|${remove_source}||" "$tv_source"
+
+}
+
+mov-create_config() {
+
+	:
+
+}
+
+help() {
+
+	echo Usage: medialib [OPTIONS]
+	echo
+	echo Options:
+	echo '	-h			Print this help and exit.'
+	echo '	-c <config>		Create a config file and select it.'
+	echo '	-l			List available configs'
+	echo '	-s <config>		Select a configuration file'
+	echo '	-p			Print current config'
+	echo '	-T			Test Directories in config'
+	echo '	-w			Write to current config file using source-config'
+	echo '	-u			update configs if exclude exists, obey them'
+	echo '	-U			Update without exlusion'
+	echo '	-C,			Create symlinks with values defined from config'
+	echo '	-r			Rename symlinked media files'
+	echo '	-R			Rename but ignore custom-rename'
+	echo -e '	-m <config1> <config2> -t <merged> \n				Merges config files'
+	echo '	-e <config>		Add directories defined in config so -w will not append them'
+	echo '	-a			Equivalent of -TCr'
+	echo '	-f <directory>		Add Parent source'
+	echo '	-F <directory>		Remove Parent source'
+	echo '	-i	<tv/mov>	Set library mode'
+	echo '	-ip			Print current library mode'
+}
+
+
+while getopts 'hlpTs:i:c:f:F:' OPTION; do
+	case "$OPTION" in
+		h)
+			help
+			;;
+		c)
+			config_name="$OPTARG"
+			if [ "$current_mode" == tv ]; then
+				tv-create_config
+			elif [ "$current_mode" == mov ]; then
+				mov-create_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		s)
+			config_name="$OPTARG"
+			if [ "$current_mode" == tv ]; then
+				tv-select_config
+			elif [ "$current_mode" == mov ]; then
+				mov-select_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		i)
+			identify_mode="$OPTARG"
+			select_mode
+			;;
+		p)
+			if [ "$current_mode" == tv ]; then
+				tv-active_config
+			elif [ "$current_mode" == mov ]; then
+				mov-active_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		l)
+			if [ "$current_mode" == tv ]; then
+				tv-list_config
+			elif [ "$current_mode" == mov ]; then
+				mov-list_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		T)
+			if [ "$current_mode" == tv ]; then
+				tv-check_sources
+			elif [ "$current_mode" == mov ]; then
+				mov-check_sources
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		f)
+			add_source="$OPTARG"
+			if [ "$current_mode" == tv ]; then
+				tv-add_source
+			elif [ "$current_mode" == mov ]; then
+				mov-add_source
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		F)
+			remove_source="$OPTARG"
+			if [ "$current_mode" == tv ]; then
+				tv-remove_source
+			elif [ "$current_mode" == mov ]; then
+				mov-remove_source
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		?)
+			echo "Script usage: Work in progress." >&2
+			exit 1
+			;;
+	esac
+done
+shift "$(($OPTIND -1))"
