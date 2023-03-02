@@ -12,6 +12,7 @@ runtime_config="$HOME/.config/medialib/medialibrc"
 source "$runtime_config"
 tv_source="$HOME/.config/medialib/.tv-source"
 mov_source="$HOME/.config/medialib/.mov-source"
+exclude_dirs="$HOME/.config/medialib/.exclude"
 
 tv-check_sources() {
 
@@ -20,14 +21,14 @@ tv-check_sources() {
 	else
 		touch "$tv_source"
 	fi
-	if [ $(cat "$tv_source" | wc -l) == 0 ] ; then
+	if [ "$(wc -l  $tv_source)" == 0 ] ; then
 			echo "Sources are empty"
 		else
-			count_tv_source=$(cat "$tv_source" | wc -l)
+			count_tv_source=$(wc -l < "$tv_source")
 			for ((c=1; c<=count_tv_source; c+=1)); do
-					current_source=$(head -n "$c" "$tv_source" | tail -n "$c")
+					current_source=$(head -n "$c" "$tv_source" | tail -n 1)
 				if [ -d "$current_source" ] ; then
-					echo "Success"
+					echo "Success checking: $current_source"
 				else
 					echo "Directories do not exists, reconfigure them"
 				fi
@@ -39,9 +40,9 @@ tv-check_sources() {
 select_mode() {
 
 	if [ "$identify_mode" == tv ] ; then
-			sed -i "s/current_mode=$current_mode/current_mode=tv/" "$runtime_config"
+			sed -i "s|current_mode=$current_mode|current_mode=tv|" "$runtime_config"
 	elif [ "$identify_mode" == mov ]; then
-			sed -i "s/current_mode=$current_mode/current_mode=mov/" "$runtime_config"
+			sed -i "s|current_mode=$current_mode|current_mode=mov|" "$runtime_config"
 	else
 			echo 'Invalid mode'
 			exit 1
@@ -53,7 +54,7 @@ tv-select_config() {
 
 	selected_config="$config_home/tv-$config_name"
 	if [ -f "$selected_config" ] ; then
-		sed -i "s/tv_active_conf=$tv_active_conf/tv_active_conf=tv-$config_name/" "$runtime_config"
+		sed -i "s|tv_active=$tv_active|tv_active=$selected_config|" "$runtime_config"
 	else
 		echo 'Config does not exist.'
 	fi
@@ -86,29 +87,47 @@ tv-active_config() {
 
 tv-write_config() {
 
-	count_tv_source=$(cat "$tv_source" | wc -l)
-	for ((count=1; c<=count_tv_source; count+=1)); do
-		current_source=$(head -n "$count" | tail -n "$count")
+	count_tv_source=$(wc -l < "$tv_source")
+	for ((count=1; count<=count_tv_source; count+=1)); do
+		current_source=$(head -n "$count" "$tv_source" | tail -n 1)
 		for file in "$current_source"/* ; do
 			tmdb="Enter show name here"
 			season_timer=20
 			for ((season_number=1; season_number<=season_timer; season_number+=1)); do
 				if [ -d "$file/Season $season_number" ]  ; then
-					echo "$file/Season $season_number" >> "$tv_active"
-					echo "$season_number" >> "$tv_active"
-					echo "$tmdb" >> "$tv_active"
+					filter_source=$(grep "$file/Season $season_number" "$tv_active")
+					#echo "$filter_source"
+					if [ "$file/Season $season_number" == "$filter_source" ] ; then
+						echo 'Already in the config'
+					else
+						echo "$file/Season $season_number" >> "$tv_active"
+						echo "$season_number" >> "$tv_active"
+						echo "$tmdb" >> "$tv_active"
+					fi
 				elif [ -d "$file/Season_$season_number" ] ; then
-					echo "$file/Season_$season_number" >> "$tv_activr"
-					echo "$season_number" >> "$tv_active"
-					echo "$tmdb" >> "$tv_active"
+					filter_source=$(grep "$file/Season_$season_number" "$tv_active")
+					#echo "$filter_source"
+					if [ "$file/Season_$season_number" == "$filter_source" ] ; then
+						echo 'Already in the config'
+					else
+						echo "$file/Season_$season_number" >> "$tv_active"
+						echo "$season_number" >> "$tv_active"
+						echo "$tmdb" >> "$tv_active"
+					fi
 				else
 					:
 				fi
-			done
-			find "$file" -maxdepth 1 -type f -name '*.mkv' -print -quit | while read basefile ; do
-				echo "$file" >> "$tv_active"
-				echo "Enter season number" >> "$tv_active"
-				echo "$tmdb" >> "$tv_active"
+		done
+			find "$file" -maxdepth 1 -type f -name '*.mkv' -print -quit | while read -r basefile ; do
+				filter_source=$(grep -F "$file" "$tv_active")
+				#echo "$filter_source"
+				if [ "$file" == "$filter_source" ]; then
+					echo 'Already in the config'
+				else
+					echo "$file" >> "$tv_active"
+					echo "Enter season number" >> "$tv_active"
+					echo "$tmdb" >> "$tv_active"
+				fi
 			done
 		done
 	done
@@ -118,7 +137,7 @@ tv-write_config() {
 tv-add_source() {
 
 	if [ -d "$add_source" ]; then
-		echo "$add_source" >> "$tv_source"
+		sed -i '1{s/^[[:space:]]*//; /^$/d;}' "$tv_source" && echo "$add_source" >> "$tv_source"
 	else
 		echo 'Directory does not exist'
 	fi
@@ -128,6 +147,20 @@ tv-add_source() {
 tv-remove_source() {
 
 	sed -i "s|${remove_source}||" "$tv_source"
+
+}
+
+tv-exclude_config() {
+
+	count_config=$(wc -l < "$tv_active")
+	for((i=1; i<=count_config; i+=3)); do
+			current_dir=$(head -n "$i" "$tv_active"| tail -n 1)
+		if [ "$current_dir" == "$(grep -e "$current_dir" "$exclude_dirs")" ]; then
+			:
+		else
+			echo "$current_dir" >> "$exclude_dirs"
+		fi
+	done
 
 }
 
@@ -164,7 +197,7 @@ help() {
 }
 
 
-while getopts 'hlpTs:i:c:f:F:' OPTION; do
+while getopts 'hlpTws:i:c:f:F:e' OPTION; do
 	case "$OPTION" in
 		h)
 			help
@@ -236,6 +269,24 @@ while getopts 'hlpTs:i:c:f:F:' OPTION; do
 				tv-remove_source
 			elif [ "$current_mode" == mov ]; then
 				mov-remove_source
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		w)
+			if [ "$current_mode" == tv ]; then
+				tv-write_config
+			elif [ "$current_mode" == mov ]; then
+				mov-write_config
+			else
+				echo 'Invalid mode run medialib -i <mode>'
+			fi
+			;;
+		e)
+			if [ "$current_mode" == tv ]; then
+				tv-exclude_config
+			elif [ "$current_mode" == mov ]; then
+				mov-exclude_config
 			else
 				echo 'Invalid mode run medialib -i <mode>'
 			fi
