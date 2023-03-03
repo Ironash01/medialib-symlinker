@@ -1,0 +1,92 @@
+#!/bin/bash
+
+runtime_config="$HOME/.config/medialib/.medialibrc"
+source ./help
+source ./src-tv
+
+# Config check
+
+if [ -f "$runtime_config" ]; then
+	:
+else
+	mkdir -p "$HOME/.config/medialib"
+	touch "$runtime_config"
+	echo "current_mode=" >> "$runtime_config"
+	echo "tv_link=" >> "$runtime_config"
+	echo "mov_link=" >> "$runtime_config"
+	echo "$runtime_config created, set the mode first."
+fi
+
+source "$runtime_config"
+
+global-check_sources() {
+
+	echo "Current mode: $current_mode"
+	
+	readarray -t source_array <<< "$(grep "tv_source"  "$runtime_config" | sed "s|tv_source=||g")"
+	for source in ${source_array[@]}; do
+		if [ -d "$source" ]; then
+			echo "Success checking $source"
+		else
+			echo "Source does not exist $source"
+		fi
+	done
+}
+
+
+global-select_mode() {
+
+	case "$identify_mode" in
+		tv)
+			 sed -i "s|current_mode=$current_mode|current_mode=$identify_mode|" "$runtime_config" ;;
+		mov)
+			sed -i "s|current_mode=$current_mode|current_mode=$identify_mode|" "$runtime_config" ;;
+		*)
+			echo 'Invalid mode' ; exit 1 ;;
+	esac
+
+}
+
+
+while getopts 'halwi:f:F:d:' OPTION; do
+		case "$OPTION" in
+			h)
+				help ;;
+			a) 
+				case "$current_mode" in
+				tv) tv-setup_library ;;
+				mov) mov-setup_library ;;
+				*) echo 'Invalid mode' ;;
+				esac ;;
+			l) 
+				global-check_sources ;;
+			i)
+				identify_mode="$OPTARG"
+				global-select_mode ;;
+			f)
+				add_source="$OPTARG"
+				case "$current_mode" in
+				tv) tv-add_source ;;
+				mov) mov-add_source ;;
+				*) echo 'Invalid mode' ;;
+				esac ;;
+			F)
+				remove_source="$OPTARG"
+				case "$current_mode" in
+				tv) tv-remove_source ;;
+				mov) mov-remove_source ;;
+				*) echo 'Invalid mode' ;;
+				esac ;;
+			d)
+				directory_link="$OPTARG"
+				case "$current_mode" in
+				tv) tv-setlink_config ;;
+				mov) mov-setlink_config ;;
+				*) echo 'Invalid mode' ;;
+				esac ;;
+			w)
+				tv-write_config ;; 
+		esac
+done
+shift "$(($OPTIND -1))"
+

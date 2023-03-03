@@ -1,0 +1,209 @@
+#!/bin/bash
+runtime_config="$HOME/.config/medialib/.medialibrc"
+tv_active="$HOME/.config/medialib/.tv-list"
+
+tv-write_config() {
+
+    function process_season {
+
+        local file="$1"
+        local season_number"$2"
+
+         if [ "$(find "$file" -maxdepth 1 -type d -name "Season $season_number")" ]; then
+            if [ "$file/Season $season_number" != "$(grep -F "$file/Season $season_number" "$tv_active")" ]; then
+                echo "$file/Season $season_number" >> "$tv_active"
+                echo "$season_number" >> "$tv_active"
+                    echo "Enter name of the show" >> "$tv_active"
+            fi
+        elif [ "$(find "$file" -maxdepth 1 -type d -name "Season_$season_number" )" ]; then
+            if [ "$file/Season_$season_number" != "$(grep -F "$file/Season_$season_number" "$tv_active")" ]; then
+                echo "$file/Season_"$season_number >> "$tv_active"
+                echo "$season_number" >> "$tv_active"
+                echo "Enter name of the show" >> "$tv_active"
+            fi
+        fi
+    }
+
+    function process_file {
+        
+        local file="$1"
+        
+        for ((season_number=1; season_number <= 99; ++season_number)); do
+            process_season "$file" "$season_number"
+        done
+
+        if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv')" ]; then
+            if [ "$file" != "$(grep -F "$file" "$tv_active")" ]; then
+                echo "$file" >> "$tv_active"
+                echo "Enter season number" >> "$tv_active"
+                echo "Enter name of the show" >> "$tv_active"
+            fi
+        fi
+    }
+
+    function process_source {
+        local source="$1"
+
+        for file in "$source"/*; do
+            process_file "$file"
+        done
+
+    }
+
+    readarray -t source_array <<< "$(grep "tv_source" "$runtime_config"| sed "s|tv_source=||g")"
+    for source in "${source_array[@]}"; do
+        process_source "$source"
+    done
+
+}
+
+tv-link_config() {
+
+	mkdir "$tv_link"
+	read_timer=$(wc -l < "$tv_active")
+  	for ((read_num=1; read_num<=read_timer; read_num+=3)); do
+    	dir=$(sed -n "${read_num}p" "$tv_active")
+    	#echo "$dir"
+    	season=$(sed -n "$((read_num+1))p" "$tv_active")
+    	#echo "$season"
+    	tmdb=$(sed -n "$((read_num+2))p" "$tv_active")
+    	#echo "$tmdb"
+    	mkdir -p "$tv_link/$tmdb/Season $season" "$tv_link/$tmdb/Extras"
+    	find "$dir" -type f -name '*.mkv' -print | sort | while read file; do
+    		if echo "$file" | grep -qE '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|AMV|S01OP|S01ED)'; then
+    			#basematch=$(basename "'$file'")
+    			#echo  "This matched the filter: $basematch"
+    			ln -s "$file" "$tv_link/$tmdb/Extras"
+    		else
+    			#basematch=$(basename "'$file'")
+    			#echo "This is a main episode: $file"
+    			ln -s "$file" "$tv_link/$tmdb/Season $season"
+    		fi
+    	done
+    	if [ -d "$dir"/.././'Season 1' ]; then
+    		find "$dir/../" -type f -name '*.mkv' | sort | while read file; do
+    			if echo "$file" | grep -E '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|AMV|S01OP|S01ED)'; then
+    				ln -s "$file" "$tv_link/$tmdb/Extras"
+    			fi
+    		done
+    	fi
+    	find "$dir" -type f -name '*.ass' -print | sort | while read file; do
+    		if echo "$file" | grep -qE '(OVA|Specials|Depth|Lite|NCOP|NCED|Creditless|Scans|S00|Ending|Extras|RUS|UQW)'; then
+    			#basematch=$(basename "'$file'")
+    			#echo  "This matched the filter: $basematch"
+    			ln -s "$file" "$tv_link/$tmdb/Extras/"
+    		else
+    			#basematch=$(basename "'$file'")
+    			#echo "This is a main episode: $file"
+    			ln -s "$file" "$tv_link/$tmdb/Season $season"
+    		fi
+    	done
+	done
+
+}
+
+tv-rename_library() {
+
+	: > "$rename_config"
+	if [ -d "$tv_link" ]; then
+		for file in "$tv_link"/*; do
+			echo "$file" >> "$rename_config"
+		done
+	fi
+	sleep 1
+	timer=$(wc -l < "$rename_config")
+	for ((current_show=1; current_show<=timer; current_show+=1)); do
+		animeshow=$(head -n "$current_show" "$rename_config" | tail -n 1)
+		season_timer=20
+   	 	for ((season=1; season<=season_timer; season+=1)); do
+    		episode=1
+    		episode_raw_init=1
+    		if [ -d "$animeshow/Season $season" ]; then
+    			for file in "$animeshow"/Season\ "$season"/*.mkv; do
+   					season_modified=$(printf "%02d" "$season")
+   					episode=$(printf "%02d" "$episode_raw_init")
+   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.mkv" ]; then
+   						:
+   					else
+   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.mkv"
+   				 	fi
+   					episode_raw_init=$((episode_raw_init+1))
+    			done
+    			for file in "$animeshow"/Season\ "$season"/*.ass; do
+   					season_modified=$(printf "%02d" "$season")
+   					episode=$(printf "%02d" "$episode_raw_init")
+   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.ass" ]; then
+   						:
+   					else
+   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.ass"
+   				 	fi
+   					episode_raw_init=$((episode_raw_init+1))
+    			done
+    		fi
+    	done
+	done
+
+
+}
+
+tv-setup_lib() {
+
+	tv-link_config
+	tv-rename_library
+
+}
+
+tv-setlink_config() {
+
+    directory_link=$(echo "$directory_link" | sed "s|~|$HOME|g")
+    echo "$directory_link"
+	if [ -d "$directory_link" ]; then
+		sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"
+	else
+		read -p 'Directory does not exist, create? y or n: ' prompt
+		if [ "$prompt" == y ] || [ "$prompt" == Y ] ; then
+			mkdir -p "$directory_link"
+            sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"
+		else
+			echo 'Directory not created'
+			echo 'tv-setlink failed'
+			exit 1
+		fi
+	fi
+
+}
+
+tv-add_source() {
+
+        existing_sources=$(grep -c "tv_source" "$runtime_config")
+        for ((i=0; i <= existing_sources; ++i)); do
+            if [ -d "$add_source" ] && [ 0 = "$(grep -c "$add_source" "$runtime_config")" ]; then
+                tv_source_count=$(($(grep -c "tv_source" "$runtime_config")+1))
+                echo "tv_source${tv_source_count}=$add_source" >> "$runtime_config"
+            else
+                echo 'Directory does not exist or source already added'
+                exit 1
+	        fi
+        done
+
+}
+
+tv-remove_source() {
+
+	sed -i "/${remove_source//\//\\/}/d" "$runtime_config"
+
+}
+
+tv-exclude_config() {
+
+	count_config=$(wc -l < "$tv_active")
+	for((i=1; i<=count_config; i+=3)); do
+			current_dir=$(head -n "$i" "$tv_active"| tail -n 1)
+		if [ "$current_dir" == "$(grep -e "$current_dir" "$exclude_dirs")" ]; then
+			:
+		else
+			echo "$current_dir" >> "$exclude_dirs"
+		fi
+	done
+
+}

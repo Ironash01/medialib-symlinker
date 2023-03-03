@@ -1,0 +1,43 @@
+Implemenent sorting specials episodes. ( by default no skipping will be done)
+
+running medialib -q run will read the files from tmdb/Extras and place them inside tmdb/Specials so medialib -q run should only be executed after medialib -C
+
+Users would neet to add specials keyword by medialib -q <add:|remove:|list> <keyword> and remove by medialib list by medialib
+
+Default keywords: OVA, Specials, 
+
+To add keywords
+
+medialib -q select
+medialib -q select | grep <show here>
+
+The 'select' argument of -q tells the program that it is setting this keyword for a specific show already registered in our current config.
+The select will issue a prompt which then Users would be required to enter the name of their show. The subshell run by the script would change directory into 
+
+medialib -q add <keyword> e.g. medialib -q add 'Depth of Field' -q epnum 7-13 
+
+This will add 'Depth of Field' as specials keyword to the current show and then after that and tell the program that those episode are S00E07 to S00E13 respectively.
+
+
+How about normal specials such as those marked with OVA, Specials, S00 already?
+They get sorted obviously, by alphabetically.
+
+To modify the episode numbers
+
+
+OVA
+S00
+Specials
+
+medialib -q select 
+	prompt: show here (with autocomletion)
+
+medialib -q add OVA -q ep 1-5:skip:skip:skip
+
+The ":" character will tell it to skip specific episode numbering
+e.g. you want to set OVA to ep 01-05 but ep 04 is actually a recap in the tmdb list
+syntax :num:num
+
+medialib -q add OVA -q ep 1-5 -q skip 4
+
+the "add" argument on q will add keywords and if it exists will replace them accordingly.
