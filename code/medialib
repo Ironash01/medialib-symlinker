@@ -22,7 +22,7 @@ source "$runtime_config"
 global-check_sources() {
 
 	echo "Current mode: $current_mode"
-	
+
 	readarray -t source_array <<< "$(grep "tv_source"  "$runtime_config" | sed "s|tv_source=||g")"
 	for source in ${source_array[@]}; do
 		if [ -d "$source" ]; then
@@ -86,6 +86,8 @@ while getopts 'halwi:f:F:d:' OPTION; do
 				esac ;;
 			w)
 				tv-write_config ;; 
+			?)
+				echo 'Invalid option'
 		esac
 done
 shift "$(($OPTIND -1))"

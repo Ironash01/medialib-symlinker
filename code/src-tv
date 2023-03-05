@@ -4,6 +4,22 @@ tv_active="$HOME/.config/medialib/.tv-list"
 
 tv-write_config() {
 
+	tmdb=
+
+	function web_scraper {
+
+		local passed_file=$1
+		
+		search_query=$(basename "$passed_file" | sed 's|^\[[^]]*\]||; s|(Dual Audio)||; s|\[[^]]*\]$||; s|\[[^]]*\]v2$||; s|S01||; s|1080p||; s|Dual Audio||; s|BD Remux||; s|FLAC-TTGA||; s|^ *||g; s| *$||g')
+		# https://www.themoviedb.org/search?query=
+		#search_query_short=$(echo "$search_query" | tr '[:upper:]' '[:lower:]' | sed 's| |-|g' | sed -E 's/\([0-9]+\)//g; s|-$||; s|\!||')
+		search_query=$(echo "$search_query" | sed -E 's/\([0-9]+\)//g' | sed 's|\!|%21|g; s| |%20|g; s|(|%28|g; s|)|%29|g; s|,|%2C|g')
+		search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | grep -m 2 -e 'data-media-type="tv"' | grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||')
+		tmdb=$(curl -s -L "https://www.themoviedb.org/$search_query" | grep '<title>' | sed 's|<title>||; s|&#8212\; The Movie Database (TMDB)</title>||g; s|(TV Series |(|'| sed -E 's|-[0-9]+\)|)|; s|\- \)|)|; s|^ *||g; s| *$||g')
+		
+
+	}
+
     function process_season {
 
         local file="$1"
@@ -11,32 +27,35 @@ tv-write_config() {
 
          if [ "$(find "$file" -maxdepth 1 -type d -name "Season $season_number")" ]; then
             if [ "$file/Season $season_number" != "$(grep -F "$file/Season $season_number" "$tv_active")" ]; then
+				web_scraper "$file"
                 echo "$file/Season $season_number" >> "$tv_active"
                 echo "$season_number" >> "$tv_active"
-                    echo "Enter name of the show" >> "$tv_active"
+                    echo "$tmdb" >> "$tv_active"
             fi
         elif [ "$(find "$file" -maxdepth 1 -type d -name "Season_$season_number" )" ]; then
             if [ "$file/Season_$season_number" != "$(grep -F "$file/Season_$season_number" "$tv_active")" ]; then
+				web_scraper "$file"
                 echo "$file/Season_"$season_number >> "$tv_active"
                 echo "$season_number" >> "$tv_active"
-                echo "Enter name of the show" >> "$tv_active"
+                echo "$tmdb" >> "$tv_active"
             fi
         fi
     }
 
     function process_file {
-        
+
         local file="$1"
-        
+
         for ((season_number=1; season_number <= 99; ++season_number)); do
             process_season "$file" "$season_number"
         done
 
         if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv')" ]; then
             if [ "$file" != "$(grep -F "$file" "$tv_active")" ]; then
+				web_scraper "$file"
                 echo "$file" >> "$tv_active"
                 echo "Enter season number" >> "$tv_active"
-                echo "Enter name of the show" >> "$tv_active"
+                echo "$tmdb" >> "$tv_active"
             fi
         fi
     }
@@ -161,14 +180,20 @@ tv-setlink_config() {
 		sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"
 	else
 		read -p 'Directory does not exist, create? y or n: ' prompt
-		if [ "$prompt" == y ] || [ "$prompt" == Y ] ; then
+		case "$prompt" in 
+		y)
 			mkdir -p "$directory_link"
             sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"
-		else
+			;;
+		n)
 			echo 'Directory not created'
 			echo 'tv-setlink failed'
 			exit 1
-		fi
+			;;
+		*)
+			echo 'Invalid option'
+			;;
+		esac
 	fi
 
 }
