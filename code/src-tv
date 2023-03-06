@@ -5,18 +5,25 @@ tv_active="$HOME/.config/medialib/.tv-list"
 tv-write_config() {
 
 	tmdb=
+	search_query=
 
 	function web_scraper {
 
 		local passed_file=$1
-		
-		search_query=$(basename "$passed_file" | sed 's|^\[[^]]*\]||; s|(Dual Audio)||; s|\[[^]]*\]$||; s|\[[^]]*\]v2$||; s|S01||; s|1080p||; s|Dual Audio||; s|BD Remux||; s|FLAC-TTGA||; s|^ *||g; s| *$||g')
-		# https://www.themoviedb.org/search?query=
-		#search_query_short=$(echo "$search_query" | tr '[:upper:]' '[:lower:]' | sed 's| |-|g' | sed -E 's/\([0-9]+\)//g; s|-$||; s|\!||')
-		search_query=$(echo "$search_query" | sed -E 's/\([0-9]+\)//g' | sed 's|\!|%21|g; s| |%20|g; s|(|%28|g; s|)|%29|g; s|,|%2C|g')
-		search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | grep -m 2 -e 'data-media-type="tv"' | grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||')
-		tmdb=$(curl -s -L "https://www.themoviedb.org/$search_query" | grep '<title>' | sed 's|<title>||; s|&#8212\; The Movie Database (TMDB)</title>||g; s|(TV Series |(|'| sed -E 's|-[0-9]+\)|)|; s|\- \)|)|; s|^ *||g; s| *$||g')
-		
+
+		search_query=$(basename "$passed_file" | sed -E -f 'filter-web-scraper')
+		echo "Processing to search tmdb: $search_query"
+		# https://www.themoviedb.org/search/tv?query=
+		search_query=$(echo "$search_query" | sed -E 's/\([0-9]+\)//g' | sed -f 'convert-html-encoding')
+		#echo "$search_query"
+		if echo "$search_query" | grep -q -f 'custom-search-rules' ; then
+			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | grep -m 4 -e 'data-media-type="tv"' | grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||' | head -n 2 | tail -n 1)
+		else
+		search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | grep -m 4 -e 'data-media-type="tv"' | grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||'| head -n 1 | tail -n 1)
+		fi
+		tmdb=$(curl -s -S -L "https://www.themoviedb.org/$search_query" | grep '<title>' | sed 's|<title>||; s|&#8212\; The Movie Database (TMDB)</title>||g; s|(TV Series |(|'| sed -E 's|-[0-9]+\)|)|; s|\- \)|)|; s|^ *||g; s| *$||g'| sed -f 'filenaming-rule')
+		#echo "$tmdb"
+
 
 	}
 
@@ -25,40 +32,43 @@ tv-write_config() {
         local file="$1"
         local season_number"$2"
 
-         if [ "$(find "$file" -maxdepth 1 -type d -name "Season $season_number")" ]; then
-            if [ "$file/Season $season_number" != "$(grep -F "$file/Season $season_number" "$tv_active")" ]; then
+         if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' | grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
 				web_scraper "$file"
-                echo "$file/Season $season_number" >> "$tv_active"
-                echo "$season_number" >> "$tv_active"
-                    echo "$tmdb" >> "$tv_active"
-            fi
-        elif [ "$(find "$file" -maxdepth 1 -type d -name "Season_$season_number" )" ]; then
-            if [ "$file/Season_$season_number" != "$(grep -F "$file/Season_$season_number" "$tv_active")" ]; then
-				web_scraper "$file"
-                echo "$file/Season_"$season_number >> "$tv_active"
+				echo "First condition"
+                echo "$(find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' | grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number")" >> "$tv_active"
                 echo "$season_number" >> "$tv_active"
                 echo "$tmdb" >> "$tv_active"
-            fi
-        fi
+
+          elif find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -q "S0${season_number}E01" ; then
+          			echo "Second condition"
+          			web_scraper "$file"
+          			echo "$file" >> "$tv_active"
+          			echo "$season_number" >> "$tv_active"
+          			echo "$tmdb" >> "$tv_active"
+
+          elif [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv'-quit )" ]; then
+          		echo "Third condition"
+          		web_scraper "$file"
+          		file_filtered="$(echo "$file" | sed -f filter-web-scraper| grep -E "S[eason]*[_ ]*[0]*$season_number"| sed -E 's//S[eason]*[_ ]*[0]*/g')"
+          		echo "Extracted number: $file_filtered"
+        		search_season="$(curl -s -S https://themoviedb.org/"$search_query"/seasons | grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>' | grep -Eo 'season/[0-9]'| grep -E "$file_filtered" | sed 's/season\///g')"
+        		echo "$file" >> "$tv_active"
+        		echo "$search_season" >> "$tv_active"
+        		echo "$tmdb" >> "$tv_active"
+          fi
     }
+
 
     function process_file {
 
         local file="$1"
 
         for ((season_number=1; season_number <= 99; ++season_number)); do
-            process_season "$file" "$season_number"
+        	process_season "$file" "$season_number"
         done
 
-        if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv')" ]; then
-            if [ "$file" != "$(grep -F "$file" "$tv_active")" ]; then
-				web_scraper "$file"
-                echo "$file" >> "$tv_active"
-                echo "Enter season number" >> "$tv_active"
-                echo "$tmdb" >> "$tv_active"
-            fi
-        fi
     }
+
 
     function process_source {
         local source="$1"
@@ -123,44 +133,32 @@ tv-link_config() {
 
 tv-rename_library() {
 
-	: > "$rename_config"
-	if [ -d "$tv_link" ]; then
-		for file in "$tv_link"/*; do
-			echo "$file" >> "$rename_config"
+	anime_show=
+
+	function process_rename {
+
+	local current_source="$1"
+
+		for episode in "$current_source"/*; do
+			season_number="$(dirname "$episode")"
+			season_number="$(basename "$season_number" | sed -E 's/Season//g; s/^ *//g; s/ *$//g;')"
+			episode_number_modified="$(printf "%02d" "$episode_number")"
+			season_number_modified="$(printf "%02d" "$season_number")"
+			mv "$episode" "$current_source/$anime_show S${season_number_modified}E${episode_number_modified}.mkv"
+			episode_number=$((episode_number+1))
 		done
-	fi
-	sleep 1
-	timer=$(wc -l < "$rename_config")
-	for ((current_show=1; current_show<=timer; current_show+=1)); do
-		animeshow=$(head -n "$current_show" "$rename_config" | tail -n 1)
-		season_timer=20
-   	 	for ((season=1; season<=season_timer; season+=1)); do
-    		episode=1
-    		episode_raw_init=1
-    		if [ -d "$animeshow/Season $season" ]; then
-    			for file in "$animeshow"/Season\ "$season"/*.mkv; do
-   					season_modified=$(printf "%02d" "$season")
-   					episode=$(printf "%02d" "$episode_raw_init")
-   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.mkv" ]; then
-   						:
-   					else
-   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.mkv"
-   				 	fi
-   					episode_raw_init=$((episode_raw_init+1))
-    			done
-    			for file in "$animeshow"/Season\ "$season"/*.ass; do
-   					season_modified=$(printf "%02d" "$season")
-   					episode=$(printf "%02d" "$episode_raw_init")
-   					if [ -f "$animeshow/Season $season/S${season_modified}E${episode}.ass" ]; then
-   						:
-   					else
-   						mv -v "$file" "$animeshow/Season $season/S${season_modified}E${episode}.ass"
-   				 	fi
-   					episode_raw_init=$((episode_raw_init+1))
-    			done
-    		fi
-    	done
-	done
+
+	}
+
+		i_timer="$(find $tv_link -maxdepth 1 -type d  | wc -l)"
+
+		readarray -t link_array <<< "$(find "$tv_link" -maxdepth 2 -type d | sort | grep -E 'Season [0-9]+')"
+		for anime_directory in "${link_array[@]}"; do
+			anime_show="$(dirname "$anime_directory")"
+			anime_show="$(basename "$anime_show")"
+			episode_number=1
+			process_rename "$anime_directory"
+		done
 
 
 }
@@ -180,7 +178,7 @@ tv-setlink_config() {
 		sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"
 	else
 		read -p 'Directory does not exist, create? y or n: ' prompt
-		case "$prompt" in 
+		case "$prompt" in
 		y)
 			mkdir -p "$directory_link"
             sed -i "s|tv_link=$tv_link|tv_link=$directory_link|" "$runtime_config"

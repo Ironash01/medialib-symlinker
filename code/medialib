@@ -31,6 +31,12 @@ global-check_sources() {
 			echo "Source does not exist $source"
 		fi
 	done
+
+	if [ -d "$tv_link" ]; then
+		echo "Success checking link directory: $tv_link"
+	else
+		echo "Link directory does not exist at $tv_link"
+	fi
 }
 
 
@@ -48,17 +54,17 @@ global-select_mode() {
 }
 
 
-while getopts 'halwi:f:F:d:' OPTION; do
+while getopts 'halwcri:f:F:d:' OPTION; do
 		case "$OPTION" in
 			h)
 				help ;;
-			a) 
+			a)
 				case "$current_mode" in
 				tv) tv-setup_library ;;
 				mov) mov-setup_library ;;
 				*) echo 'Invalid mode' ;;
 				esac ;;
-			l) 
+			l)
 				global-check_sources ;;
 			i)
 				identify_mode="$OPTARG"
@@ -85,7 +91,11 @@ while getopts 'halwi:f:F:d:' OPTION; do
 				*) echo 'Invalid mode' ;;
 				esac ;;
 			w)
-				tv-write_config ;; 
+				tv-write_config ;;
+			c)
+				tv-link_config ;;
+			r)
+				tv-rename_library ;;
 			?)
 				echo 'Invalid option'
 		esac
