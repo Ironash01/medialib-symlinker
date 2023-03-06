@@ -1,5 +1,8 @@
 s/\[[^]]*\]//g
 s/^\[[^]]*\]//
+s/FLAC2.0//g
+s/\./ /g
+s/Dual-Audio//g
 s/\(Dual Audio\)//
 s/Dual Audio//
 s/\(Subbed & Dubbed\)//g
@@ -13,8 +16,24 @@ s/1080p//
 s/BD//
 s/Remux//
 s/FLAC-TTGA//
+s/Filtered//g
 s/-TTGA//
 s/S[0]*[0-9]+//
 s/\(S[0]*[0-9]+\)//g
+s/_/ /g
+s/BDRip//g
+s/10-Bit//g
+s/DD//g
+s/x264//g
+s/x265//g
+s/-EMBER//g
+s/EMBER//g
+s/Bluray//g
+s/BluRay//g
+s/10-bit//g
+s/10 bits//g
+s/Rip//g
+s/2 0//g
+s/-YURASUKA//g
 s/^ *//g
 s/ *$//g

@@ -32,26 +32,32 @@ tv-write_config() {
         local file="$1"
         local season_number"$2"
 
-         if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' | grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
+         if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' | grep -q -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
 				web_scraper "$file"
-				echo "First condition"
+				#echo "First condition"
                 echo "$(find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' | grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number")" >> "$tv_active"
                 echo "$season_number" >> "$tv_active"
                 echo "$tmdb" >> "$tv_active"
 
           elif find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -q "S0${season_number}E01" ; then
-          			echo "Second condition"
+          			#echo "Second condition"
           			web_scraper "$file"
           			echo "$file" >> "$tv_active"
           			echo "$season_number" >> "$tv_active"
           			echo "$tmdb" >> "$tv_active"
 
           elif [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv'-quit )" ]; then
-          		echo "Third condition"
+          		#echo "Third condition"
           		web_scraper "$file"
-          		file_filtered="$(echo "$file" | sed -f filter-web-scraper| grep -E "S[eason]*[_ ]*[0]*$season_number"| sed -E 's//S[eason]*[_ ]*[0]*/g')"
+          		file_filtered="$(echo "$file" | sed -f 'filter-web-scraper' | grep -E "S[eason]*[_ ]*[0]*$season_number"| sed -E 's//S[eason]*[_ ]*[0]*/g')"
+				file_keyword="$(echo "$file | sed -f 'filter-web-scraper' | sed 's/^\(\w*\)/\1\.*/g' )"
           		echo "Extracted number: $file_filtered"
-        		search_season="$(curl -s -S https://themoviedb.org/"$search_query"/seasons | grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>' | grep -Eo 'season/[0-9]'| grep -E "$file_filtered" | sed 's/season\///g')"
+        		search_season="$(curl -s -S -L https://themoviedb.org/"$search_query"/seasons | grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>' | grep -Eo 'season/[0-9]'| grep -E "$file_filtered" | sed 's/season\///g')"
+        		if [ -n "$search_season" ]; then
+        			:
+        		else
+        			search_season="$(curl -s -S -L https://themoviedb.org/"$search_query"/seasons | grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>' | grep -E "$search_season" | sed -E 's/<h2><a href="\/tv\/[0-9]+\/season\///g; s/"//g; s/\>.*<\/a>//g; s/<\/h2>//g; s/^ *//g; s/ *$//g')"
+        		fi
         		echo "$file" >> "$tv_active"
         		echo "$search_season" >> "$tv_active"
         		echo "$tmdb" >> "$tv_active"
@@ -78,6 +84,8 @@ tv-write_config() {
         done
 
     }
+
+    : > "$tv_active"
 
     readarray -t source_array <<< "$(grep "tv_source" "$runtime_config"| sed "s|tv_source=||g")"
     for source in "${source_array[@]}"; do
@@ -139,12 +147,23 @@ tv-rename_library() {
 
 	local current_source="$1"
 
-		for episode in "$current_source"/*; do
+		for episode in "$current_source"/*.mkv; do
 			season_number="$(dirname "$episode")"
 			season_number="$(basename "$season_number" | sed -E 's/Season//g; s/^ *//g; s/ *$//g;')"
 			episode_number_modified="$(printf "%02d" "$episode_number")"
 			season_number_modified="$(printf "%02d" "$season_number")"
 			mv "$episode" "$current_source/$anime_show S${season_number_modified}E${episode_number_modified}.mkv"
+			episode_number=$((episode_number+1))
+		done
+
+		episode_number=1
+
+		for episode in "$current_source"/*.ass; do
+			season_number="$(dirname "$episode")"
+			season_number="$(basename "$season_number" | sed -E 's/Season//g; s/^ *//g; s/ *$//g;')"
+			episode_number_modified="$(printf "%02d" "$episode_number")"
+			season_number_modified="$(printf "%02d" "$season_number")"
+			mv "$episode" "$current_source/$anime_show S${season_number_modified}E${episode_number_modified}.ass"
 			episode_number=$((episode_number+1))
 		done
 
@@ -163,9 +182,12 @@ tv-rename_library() {
 
 }
 
-tv-setup_lib() {
+tv-setup_library() {
 
+	tv-write_config
+	sleep 1
 	tv-link_config
+	sleep 1
 	tv-rename_library
 
 }
@@ -198,16 +220,13 @@ tv-setlink_config() {
 
 tv-add_source() {
 
-        existing_sources=$(grep -c "tv_source" "$runtime_config")
-        for ((i=0; i <= existing_sources; ++i)); do
-            if [ -d "$add_source" ] && [ 0 = "$(grep -c "$add_source" "$runtime_config")" ]; then
-                tv_source_count=$(($(grep -c "tv_source" "$runtime_config")+1))
-                echo "tv_source${tv_source_count}=$add_source" >> "$runtime_config"
-            else
-                echo 'Directory does not exist or source already added'
-                exit 1
-	        fi
-        done
+
+           if [ -d "$add_source" ] && [ "$(grep -c -o "$add_source" "$runtime_config")" == 0 ]; then
+               echo "tv_source=$add_source" >> "$runtime_config"
+           else
+               echo 'Directory does not exist or source already added'
+               exit 1
+	       fi
 
 }
 
