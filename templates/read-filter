@@ -1,0 +1,8 @@
+#!/bin/bash
+
+readarray -t array <<< "$(cat filter-web-scraper)"
+
+for item in "${array[@]}"; do
+	echo "sed '$item'"
+done
+
