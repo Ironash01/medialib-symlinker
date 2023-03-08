@@ -1,6 +1,8 @@
+s/_/ /g
 s/\[[^]]*\]//g
 s/^\[[^]]*\]//
 s/FLAC2.0//g
+s/English AC3 5.1//g
 s/\./ /g
 s/Dual-Audio//g
 s/\(Dual Audio\)//
@@ -20,9 +22,15 @@ s/Filtered//g
 s/-TTGA//
 s/S[0]*[0-9]+//
 s/\(S[0]*[0-9]+\)//g
-s/_/ /g
 s/BDRip//g
 s/10-Bit//g
+s/English//g
+s/AC3//g
+s/Uncut RM4K//g
+s/YIFY//g
+s/\(WEB\)//g
+s/WEB//g
+s/- MeGUiL//g
 s/DD//g
 s/x264//g
 s/x265//g
@@ -35,5 +43,11 @@ s/10 bits//g
 s/Rip//g
 s/2 0//g
 s/-YURASUKA//g
+s/mkv//g
+s/mp4//g
+s/\( *10bit Tigole\)//g
+s/\( *Silence\)//g
+s/Extended RM4K//g
+s/Half-SBS DTSHD-MA 7 1 - LEGi0N//g
 s/^ *//g
 s/ *$//g
