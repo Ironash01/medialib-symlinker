@@ -50,11 +50,11 @@ fi
 
 # Checks dependencies
 
-declare -a dependencies=("printf" "sed" "grep" "find" "curl" "read" "touch" "ln")
+declare -a dependencies=("printf" "sed" "grep" "find" "curl" "read" "touch" "ln" "nano")
 
 for dependencies_check in "${dependencies[@]}"; do
 
-	if ! type "$dependencies_check" > dependency-check ; then
+	if ! type "$dependencies_check" >dependency-check; then
 		echo "Missing dependency: $dependencies_check"
 		exit 1
 
@@ -119,7 +119,32 @@ global-select_mode() {
 
 }
 
-while getopts 'halwcri:s:S:d:' OPTION; do
+global_edit_configs() {
+
+	case "$choose_edit" in
+	ff)
+		nano "$filter_filename"
+		;;
+	cs)
+		nano "$custom_search"
+		;;
+	fh)
+		nano "$filter_html"
+		;;
+	fs)
+		nano "$filter_specials"
+		;;
+	fw)
+		nano "$filter_web"
+		;;
+	*)
+		echo 'Invalid input'
+		;;
+	esac
+
+}
+
+while getopts 'halwcre:i:s:S:d:' OPTION; do
 
 	case "$OPTION" in
 	h)
@@ -239,6 +264,10 @@ while getopts 'halwcri:s:S:d:' OPTION; do
 			echo 'Invalid mode'
 			;;
 		esac
+		;;
+	e)
+		choose_edit="$OPTARG"
+		global_edit_configs
 		;;
 	?)
 		echo 'Invalid option'

@@ -16,7 +16,8 @@ mov-write_config() {
         if [ -n "$search_query" ]; then
 
             #echo "$search_query"
-            search_query_year=$(echo $search_query | grep -Eo '\(*[0-9]{4}\)*$' | sed -E 's/\(//g; s/\)//g')
+            search_query_year=$(echo $search_query | grep -Eo '\(*[0-9]{4}\)*$' \
+            | sed -E 's/\(//g; s/\)//g')
 
             if [ -n "$search_query_year" ]; then
 
@@ -29,9 +30,9 @@ mov-write_config() {
 
                 #https://www.themoviedb.org/search/movie?query=
 
-                search_query="$(curl -s -S -L "https://www.themoviedb.org/search/movie?query=$search_query" |
-                    grep -E 'data-media-type="movie"' |
-                    grep -o '<h2>.*</h2>' | sed 's/<[/]*h2>//g' | head -n 1 | tail -n 1)"
+                search_query="$(curl -s -S -L "https://www.themoviedb.org/search/movie?query=$search_query" \
+                | grep -E 'data-media-type="movie"' \ 
+                | grep -o '<h2>.*</h2>' | sed 's/<[/]*h2>//g' | head -n 1 | tail -n 1)"
 
                 #echo "Final result: $search_query ($search_query_year)"
                 {
@@ -149,7 +150,7 @@ mov-link_config() {
 
         for file in "${mov_extras_array[@]}"; do
 
-            echo "Extras for $mov_base_filename:"$file""            
+            echo "Extras for $mov_base_filename:"$file""
 
         done
 

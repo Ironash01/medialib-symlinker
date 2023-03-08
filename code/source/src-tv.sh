@@ -10,11 +10,13 @@ tv-write_config() {
 		local passed_file=$1
 
 		search_query=$(basename "$passed_file" | sed -E -f "$filter_web")
-		echo "Processing to search tmdb: $search_query"
 
 		# https://www.themoviedb.org/search/tv?query=
 
-		search_query=$(echo "$search_query" | sed -E 's/\([0-9]+\)//g' | sed -f "$filter_html")
+		search_query="$(echo "$search_query" | sed -E 's/\([0-9]+\)//g' \
+		| sed -f "$filter_html" | sed 's/%27$//; s/%20$//')"
+
+		echo "Processing to search tmdb: $search_query"
 
 		if echo "$search_query" | grep -q -f "$custom_search"; then
 
@@ -90,29 +92,15 @@ tv-write_config() {
 		if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -vE 'S[eason]*[0]*[0-9]')" ]; then
 
 			web_scraper "$file"
-			# file_filtered="$(echo "$file" | sed -f "$filter_web" \
-			# | grep -E "S[eason]*[_ ]*[0]*$season_number" \
-			# | sed -E 's//S[eason]*[_ ]*[0]*/g')"
 
 			file_keyword="$(basename "$file" | sed -f "$filter_web" | sed 's/^\(\w*\)/\1\.*/g')"
-			
-			#echo "$file_keyword"
-			# echo "Extracted number: $file_filtered"
-
-			# search_season="$(curl -s -S -L https://themoviedb.org/"$search_query"/seasons \
-			# | grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>' \
-			# | grep -Eo 'season/[0-9]'| grep -E "$file_filtered" | sed 's/season\///g')"
-
-			#echo "$search_query"
 
 			search_season="$(curl -s -S -L "https://themoviedb.org$search_query/seasons" |
 				grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>')"
-			
+
 			search_season="$(echo "$search_season" |
 				grep -E "$file_keyword" |
 				sed -E 's/<h2><a href="\/tv\/[0-9]+\/season\///g; s/\"//g; s/\>.*<\/a>//g; s/<\/h2>//g; s/^ *//g; s/ *$//g')"
-
-			#echo "$search_season"
 
 			{
 
