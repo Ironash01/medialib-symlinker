@@ -2,7 +2,7 @@
 
 mov-write_config() {
 
-	: > "$mov_active"
+    : >"$mov_active"
 
     declare search_query
     declare search_query_year
@@ -15,8 +15,8 @@ mov-write_config() {
 
         if [ -n "$search_query" ]; then
 
-            search_query_year=$(echo "$search_query" | grep -Eo '\(*[0-9]{4}\)*$' \
-            | sed -E 's/\(//g; s/\)//g')
+            search_query_year=$(echo "$search_query" | grep -Eo '\(*[0-9]{4}\)*$' |
+                sed -E 's/\(//g; s/\)//g')
 
             if [ -n "$search_query_year" ]; then
 
@@ -25,15 +25,15 @@ mov-write_config() {
                 search_query="$search_query y:$search_query_year"
                 search_query="$(echo "$search_query" | sed -E 's/[^A-Za-z][0-9]{4} *.*y:/ y:/')"
 
-				echo "Processing search: $search_query"
+                echo "Processing search: $search_query"
 
                 search_query="$(echo "$search_query" | sed -f "$filter_html" | sed s"/%27//g")"
 
                 #https://www.themoviedb.org/search/movie?query=
 
-                search_query="$(curl -s -S -L "https://www.themoviedb.org/search/movie?query=$search_query" \
-                | grep -E 'data-media-type="movie"' \
-                | grep -o '<h2>.*</h2>' | sed 's/<[/]*h2>//g' | head -n 1 | tail -n 1)"
+                search_query="$(curl -s -S -L "https://www.themoviedb.org/search/movie?query=$search_query" |
+                    grep -E 'data-media-type="movie"' |
+                    grep -o '<h2>.*</h2>' | sed 's/<[/]*h2>//g' | head -n 1 | tail -n 1)"
 
                 echo "Final result: $search_query ($search_query_year)"
 
@@ -42,7 +42,7 @@ mov-write_config() {
                     echo "$mov_file"
                     echo "$search_query ($search_query_year)"
 
-                } >> "$mov_active"
+                } >>"$mov_active"
 
             fi
 
@@ -56,28 +56,23 @@ mov-write_config() {
 
         for mov_directory in "$source"/*; do
 
+            declare video_formats
+            video_formats=(".mkv" ".mp4" ".avi" ".mov" ".wmv" ".flv")
 
-            if [ -n "$(find "$mov_directory" -maxdepth 1 -type f -name '*.mkv')" ]; then
+            for item_vformat in "${video_formats[@]}"; do
 
-                for mov_file in "$mov_directory"/*.mkv; do
+                if [ -n "$(find "$mov_directory" -maxdepth 1 -type f -name "*$item_vformat")" ]; then
 
-                    mov_file="$(echo "$mov_file" | grep -vi 'Sample')"
-                    web_scraper "$mov_file"
+                    for mov_file in "$mov_directory"/*"$item_vformat"; do
 
-                done
+                        mov_file="$(echo "$mov_file" | grep -vi 'Sample')"
+                        web_scraper "$mov_file"
 
-            fi
+                    done
 
-            if [ -n "$(find "$mov_directory" -maxdepth 1 -type f -name '*.mp4')" ]; then
+                fi
 
-                for mov_file in "$mov_directory"/*.mp4; do
-
-                    mov_file="$(echo "$mov_file" | grep -vi 'Sample.mp4')"
-                    web_scraper "$mov_file"
-
-                done
-
-            fi
+            done
 
         done
 
@@ -100,75 +95,62 @@ mov-link_config() {
     fi
 
     declare config_read_lines
-    config_read_lines="$(wc -l < "$mov_active")"
+    config_read_lines="$(wc -l <"$mov_active")"
     echo "$config_read_lines"
 
-    for ((i = 1; i <= config_read_lines; i+=2)); do
+    for ((i = 1; i <= config_read_lines; i += 2)); do
 
         #echo "loop $i"
 
         mov_file_directory="$(sed -n "${i}p" "$mov_active")"
-        mov_file_tmdb="$(sed -n "$((i+1))p" "$mov_active")"
+        mov_file_tmdb="$(sed -n "$((i + 1))p" "$mov_active")"
 
         #echo "Directory: $mov_file_directory"
         #echo "TMDB name: $mov_file_tmdb"
 
-		if [ ! -d "$mov_link/$mov_file_tmdb" ]; then
+        if [ ! -d "$mov_link/$mov_file_tmdb" ]; then
 
-			mkdir "$mov_link/$mov_file_tmdb"
+            mkdir "$mov_link/$mov_file_tmdb"
 
-		fi
+        fi
 
         ln -s "$mov_file_directory" "$mov_link/$mov_file_tmdb/"
 
         mov_base_directory="$(dirname "$mov_file_directory")"
         mov_base_filename="$(basename "$mov_file_directory" | sed -E 's/\....$//g')"
 
-        if [ -f "$mov_base_directory/$mov_base_filename.mp3" ]; then
+        declare extaudio_formats
+        extaudio_formats=(".aac" ".ac3" ".dts" ".wma" ".mp3" ".flac")
 
-            mov_audio_file="$mov_base_filename.mp3"
-            echo "External audio found: $mov_audio_file"
-            ln -s "$mov_base_directory/$mov_audio_file" "$mov_link/$mov_file_tmdb"
+        for item_audio in "${extaudio_formats[@]}"; do
 
-        elif [ -f "$mov_base_directory/$mov_base_filename.aac" ]; then
+            if [ -f "$mov_base_directory/${mov_base_filename}$item_audio" ]; then
 
-            mov_audio_file="$mov_base_filename.aac"
-            echo "External audio found: $mov_audio_file"
-            ln -s "$mov_base_directory/$mov_audio_file" "$mov_link/$mov_file_tmdb"
+                echo "External audio found."
+                ln -s "$mov_base_directory/${mov_base_filename}$item_audio" "$mov_link/$mov_file_tmdb"
 
-        elif [ -f "$mov_base_directory/$mov_base_filename.ac3" ]; then
+            fi
 
-            mov_audio_file="$mov_base_filename.ac3"
-            echo "External audio found: $mov_audio_file"
-            ln -s "$mov_base_directory/$mov_audio_file" "$mov_link/$mov_file_tmdb"
+        done
 
-        elif [ -f "$mov_base_directory/$mov_base_filename.dts" ]; then
+        declare subtitle_formats
+        subtitle_formats=(".ass" ".ssa" ".srt" ".pgs" ".sup")
 
-            mov_audio_file="$mov_base_filename.dts"
-            echo "External audio found: $mov_audio_file"
-            ln -s "$mov_base_directory/$mov_audio_file" "$mov_link/$mov_file_tmdb"
+        for item_sub in "${subtitle_formats[@]}"; do
 
-        elif [ -f "$mov_base_directory/$mov_base_filename.flac" ]; then
+            if [ -f "$mov_base_directory/${mov_base_filename}$item_sub" ]; then
 
-            mov_audio_file="$mov_base_filename.flac"
-            echo "External audio found: $mov_audio_file"
-            ln -s "$mov_base_directory/$mov_audio_file ""$mov_link/$mov_file_tmdb"
+                echo "External subtitle found"
+                ln -s "$mov_base_directory/${mov_base_filename}$item_sub" "$mov_link/$mov_file_tmdb"
 
-        else
-            :
-        fi
+            fi
 
-        if [ -f "$mov_base_directory/$mov_base_filename.ass" ]; then
+        done
 
-			#mov_sub_file="$()"
-        	echo "$External subtitle found: "
-        
-        fi
+        mov_extras="$(find "$mov_base_directory" -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi' -o -name '*.mov' |
+            grep -vF "$(basename "$mov_file_directory")")"
 
-        mov_extras="$(find "$mov_base_directory" -type f -name '*.mkv' -o -name '*.mp4' \
-        | grep -vF "$(basename "$mov_file_directory")")"
-
-        readarray -t mov_extras_array <<< "$mov_extras"
+        readarray -t mov_extras_array <<<"$mov_extras"
 
         for file in "${mov_extras_array[@]}"; do
 
@@ -176,7 +158,7 @@ mov-link_config() {
 
             if [ ! -d "$mov_link/$mov_file_tmdb/Extras" ]; then
 
-            	mkdir "$mov_link/$mov_file_tmdb/Extras"
+                mkdir "$mov_link/$mov_file_tmdb/Extras"
 
             fi
 
@@ -184,26 +166,24 @@ mov-link_config() {
 
         done
 
-
-
     done
 
 }
 
 mov-rename_library() {
 
-	if [ ! -d "$mov_link" ]; then
-		echo "Directory link does not exist"
-		exit 1
-	fi
+    if [ ! -d "$mov_link" ]; then
+        echo "Directory link does not exist"
+        exit 1
+    fi
 
-	readarray -t current_movie <<< "$(find "$mov_link" -maxdepth 2 -type l -name '*.mkv' | sort)"
+    readarray -t current_movie <<<"$(find "$mov_link" -maxdepth 2 -type l -name '*.mkv' | sort)"
 
-	for item in "${current_movie[@]}"; do
-		echo "$item"
-		movie_basedir="$(dirname "$item")"
-		movie_basename="$(basename "$movie_basedir")"
-	done
+    for item in "${current_movie[@]}"; do
+        echo "$item"
+        movie_basedir="$(dirname "$item")"
+        movie_basename="$(basename "$movie_basedir")"
+    done
 
 }
 

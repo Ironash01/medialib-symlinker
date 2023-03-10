@@ -65,7 +65,8 @@ tv-write_config() {
 
 			} >>"$tv_active"
 
-		elif find "$file" -maxdepth 1 -type f -name '*.mkv' -o -name '*.mp4' | grep -q "S0${season_number}E01"; then
+		elif find "$file" -maxdepth 1 -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi' -o -name '*.mov' -o -name '*.wmv' -o -name '*.flv' \
+		| grep -q "S0${season_number}E01"; then
 
 			web_scraper "$file"
 
@@ -156,7 +157,8 @@ tv-link_config() {
 
 		mkdir -p "$tv_link/$tmdb/Season $season" "$tv_link/$tmdb/Extras"
 
-		find "$dir" -type f -name '*.mkv' -print | sort | while read -r file; do
+		find "$dir" -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi'-o -name '*.mov' -o -name '*.wmv' -o -name '*.flv' \
+		| sort | while read -r file; do
 
 			if echo "$file" | grep -qEf "$filter_specials"; then
 
@@ -184,7 +186,8 @@ tv-link_config() {
 
 		fi
 
-		find "$dir" -type f -name '*.ass' -print | sort | while read -r file; do
+		find "$dir" -type f -name '*.ass' -o -name '*.ssa' -o -name '*.srt' -o -name '*.pgs' -o -name '*.sup' \
+		| sort | while read -r file ; do
 
 			if echo "$file" | grep -qEf "$filter_specials"; then
 

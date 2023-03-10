@@ -51,7 +51,7 @@ fi
 
 # Checks dependencies
 
-declare -a dependencies=("printf" "sed" "grep" "find" "curl" "read" "touch" "ln" "nano")
+declare -a dependencies=("printf" "sed" "grep" "find" "curl" "read" "touch" "ln" "nano" "dirname" "basename")
 
 for dependencies_check in "${dependencies[@]}"; do
 
