@@ -162,6 +162,8 @@ mov-link_config() {
 
 			#mov_sub_file="$()"
         	echo "$External subtitle found: "
+        
+        fi
 
         mov_extras="$(find "$mov_base_directory" -type f -name '*.mkv' -o -name '*.mp4' \
         | grep -vF "$(basename "$mov_file_directory")")"

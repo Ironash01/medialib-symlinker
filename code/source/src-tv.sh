@@ -20,25 +20,26 @@ tv-write_config() {
 
 		if echo "$search_query" | grep -q -f "$custom_search"; then
 
-			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" |
-				grep -m 4 -e 'data-media-type="tv"' |
-				grep -e '<h2>' |
-				grep -Eo 'href="/tv/[0-9]+' |
-				sed 's|href="||' |
-				head -n 2 |
-				tail -n 1)
+			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | \
+			grep -m 4 -e 'data-media-type="tv"' | \
+			grep -e '<h2>' | \
+			grep -Eo 'href="/tv/[0-9]+' | \
+			sed 's|href="||' | \ 
+			head -n 2 | \
+			tail -n 1)
 
 		else
 
-			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" |
-				grep -m 4 -e 'data-media-type="tv"' |
-				grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||' | head -n 1 | tail -n 1)
+			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | \
+			grep -m 4 -e 'data-media-type="tv"' | \
+			grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||' | head -n 1 | tail -n 1)
 
 		fi
 
-		tmdb=$(curl -s -S -L "https://www.themoviedb.org/$search_query" | grep '<title>' |
-			sed 's|<title>||; s|&#8212\; The Movie Database (TMDB)</title>||g; s|(TV Series |(|' |
-			sed -E 's|-[0-9]+\)|)|; s|\- \)|)|; s|^ *||g; s| *$||g' | sed -f "$filter_filename")
+		tmdb=$(curl -s -S -L "https://www.themoviedb.org/$search_query" | grep '<title>' | \
+		sed 's|<title>||; s|&#8212\; The Movie Database (TMDB)</title>||g; s|(TV Series |(|' | \
+		sed -E 's|-[0-9]+\)|)|; s|\- \)|)|; s|^ *||g; s| *$||g' | sed -f "$filter_filename")
+
 		echo "$tmdb"
 
 		#echo "$tmdb"
@@ -50,21 +51,21 @@ tv-write_config() {
 		local file="$1"
 		local season_number="$2"
 
-		if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' |
-			grep -q -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
+		if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' \
+		| grep -q -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
 
 			web_scraper "$file"
 
 			{
 
-				echo "$(find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' |
-					grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number")"
+				echo "$(find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' \
+				| grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number")"
 				echo "$season_number"
 				echo "$tmdb"
 
 			} >>"$tv_active"
 
-		elif find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -q "S0${season_number}E01"; then
+		elif find "$file" -maxdepth 1 -type f -name '*.mkv' -o -name '*.mp4' | grep -q "S0${season_number}E01"; then
 
 			web_scraper "$file"
 
@@ -93,14 +94,19 @@ tv-write_config() {
 
 			web_scraper "$file"
 
-			file_keyword="$(basename "$file" | sed -f "$filter_web" | sed 's/^\(\w*\)/\1\.*/g')"
+			file_keyword="$(basename "$file" | sed -E -f "$filter_web" | sed 's/^\(\w*\)/\1\.*/g')"
+			echo "file keyword : $file_keyword"
 
-			search_season="$(curl -s -S -L "https://themoviedb.org$search_query/seasons" |
-				grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>')"
+			search_season="$(curl -s -S -L "https://themoviedb.org$search_query/seasons" \
+			| grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>')"
 
-			search_season="$(echo "$search_season" |
-				grep -E "$file_keyword" |
-				sed -E 's/<h2><a href="\/tv\/[0-9]+\/season\///g; s/\"//g; s/\>.*<\/a>//g; s/<\/h2>//g; s/^ *//g; s/ *$//g')"
+			echo "search_season1: $search_season"
+
+			search_season="$(echo "$search_season" \
+			| grep -E "$file_keyword" \
+			| sed -E 's/<h2><a href="\/tv\/[0-9]+\/season\///g; s/\"//g; s/\>.*<\/a>//g; s/<\/h2>//g; s/^ *//g; s/ *$//g')"
+
+			echo "search_season final : $search_season"
 
 			{
 
@@ -108,7 +114,7 @@ tv-write_config() {
 				echo "$search_season"
 				echo "$tmdb"
 
-			} >>"$tv_active"
+			} >> "$tv_active"
 
 		fi
 	}
