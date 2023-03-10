@@ -230,7 +230,7 @@ tv-rename_library() {
 
 	}
 
-	readarray -t link_array <<<"$(find "$tv_link" -maxdepth 2 -type d | sort | grep -E 'Season [0-9]+')"
+	readarray -t link_array <<< "$(find "$tv_link" -maxdepth 2 -type d | sort | grep -E 'Season [0-9]+')"
 	for anime_directory in "${link_array[@]}"; do
 
 		anime_show="$(dirname "$anime_directory")"

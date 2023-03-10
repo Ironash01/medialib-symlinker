@@ -12,6 +12,7 @@ declare config_folder="./config"
 declare filter_filename="./filters/filter-filename"
 declare filter_html="./filters/filter-html"
 declare filter_web="./filters/filter-web"
+declare filter_web_mov="./filters/filter-web-mov"
 declare filter_specials="./filters/filter-specials"
 declare custom_search="./filters/custom-search"
 
