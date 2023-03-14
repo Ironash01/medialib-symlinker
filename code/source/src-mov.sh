@@ -221,9 +221,11 @@ mov-setlink_config() {
 
 mov-add_source() {
 
+    add_source="$(echo "$add_source" | sed 's/\/$//g')"
+
     if [ -d "$add_source" ] && [ "$(grep -c -o "$add_source" "$runtime_config")" == 0 ]; then
 
-        echo "mov_source=$add_source" >>"$runtime_config"
+         echo "mov_source=$add_source" >>"$runtime_config"
 
     else
 

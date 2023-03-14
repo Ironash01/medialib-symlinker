@@ -243,3 +243,11 @@ medialib -l
 There are more details petertaining to the process, it is not magic. The script needs to be provided with strings to check and compare it with results from a tmdb search.
 
 tv mode and mov mode are different
+
+# Problems
+
+DanMachi - Needs custom-search
+
+Kakegurui - needs custom-search
+
+Magi - Keyword 'Magi' returns incorrect result, must name it 'Magi The Labyrinth of Magic'

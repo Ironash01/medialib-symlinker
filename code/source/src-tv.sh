@@ -20,19 +20,19 @@ tv-write_config() {
 
 		if echo "$search_query" | grep -q -f "$custom_search"; then
 
-			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | \
-			grep -m 4 -e 'data-media-type="tv"' | \
-			grep -e '<h2>' | \
-			grep -Eo 'href="/tv/[0-9]+' | \
-			sed 's|href="||' | \ 
-			head -n 2 | \
-			tail -n 1)
+			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" \
+			| grep -m 4 -e 'data-media-type="tv"' \
+			| grep -e '<h2>' \
+			| grep -Eo 'href="/tv/[0-9]+' \
+			| sed 's|href="||' \
+			| head -n 2 \
+			| tail -n 1)
 
 		else
 
-			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" | \
-			grep -m 4 -e 'data-media-type="tv"' | \
-			grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||' | head -n 1 | tail -n 1)
+			search_query=$(curl -s "https://www.themoviedb.org/search/tv?query=$search_query" \
+			| grep -m 4 -e 'data-media-type="tv"' \
+			| grep -e '<h2>' | grep -Eo 'href="/tv/[0-9]+' | sed 's|href="||' | head -n 1 | tail -n 1)
 
 		fi
 
@@ -51,22 +51,27 @@ tv-write_config() {
 		local file="$1"
 		local season_number="$2"
 
-		if find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' \
-		| grep -q -m 1 -E "S[eason]*[_ ]*[0]*$season_number"; then
+		local file_basename="$file"
+
+		#echo "$file_basename"
+
+		if find "$file" -maxdepth 1 -type d | sort | grep -vE '(The Movie|Movie)' \
+		| grep -E "S[eason]*[_ ]*[0]*$season_number" | grep -m 1 -xvF "$file_basename" ; then
 
 			web_scraper "$file"
 
+
 			{
 
-				echo "$(find "$file" -maxdepth 1 -type d | grep -vE '(The Movie|Movie)' \
-				| grep -m 1 -E "S[eason]*[_ ]*[0]*$season_number")"
+				echo "$(find "$file" -maxdepth 1 -type d | sort | grep -vE '(The Movie|Movie)' \
+				| grep -E "S[eason]*[_ ]*[0]*$season_number" | grep -m 1 -xvF "$file_basename")"
 				echo "$season_number"
 				echo "$tmdb"
 
 			} >>"$tv_active"
 
 		elif find "$file" -maxdepth 1 -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi' -o -name '*.mov' -o -name '*.wmv' -o -name '*.flv' \
-		| grep -q "S0${season_number}E01"; then
+		| grep -E "S[eason]*[_ ]*[0]*$season_number" ; then
 
 			web_scraper "$file"
 
@@ -91,7 +96,7 @@ tv-write_config() {
 
 		done
 
-		if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -vE 'S[eason]*[0]*[0-9]')" ]; then
+		if [ "$(find "$file" -maxdepth 1 -type f -name '*.mkv' | grep -vE 'S[eason]*[0]*[0-9]' | grep -vE -f "$filter_specials")" ]; then
 
 			web_scraper "$file"
 
@@ -293,9 +298,11 @@ tv-setlink_config() {
 
 tv-add_source() {
 
+	add_source="$(echo "$add_source" | sed 's/\/$//g')"
+
 	if [ -d "$add_source" ] && [ "$(grep -c -o "$add_source" "$runtime_config")" == 0 ]; then
 
-		echo "tv_source=$add_source" >>"$runtime_config"
+		echo "tv_source=$add_source" >> "$runtime_config"
 
 	else
 
