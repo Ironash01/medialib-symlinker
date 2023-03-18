@@ -35,6 +35,8 @@ mov-write_config() {
                     grep -E 'data-media-type="movie"' |
                     grep -o '<h2>.*</h2>' | sed 's/<[/]*h2>//g' | head -n 1 | tail -n 1)"
 
+                search_query="$(echo "$search_query" | sed -f "$filter_filename")"
+
                 echo "Final result: $search_query ($search_query_year)"
 
                 {
@@ -177,12 +179,33 @@ mov-rename_library() {
         exit 1
     fi
 
-    readarray -t current_movie <<<"$(find "$mov_link" -maxdepth 2 -type l -name '*.mkv' | sort)"
+    readarray -t current_movie <<<"$(find "$mov_link" -maxdepth 2 -type l -name '*.mkv' -o -name '*.mp4' \
+    | sort)"
 
     for item in "${current_movie[@]}"; do
         echo "$item"
+        get_movie_extension="$(echo "$item" | grep -o '....$')"
         movie_basedir="$(dirname "$item")"
         movie_basename="$(basename "$movie_basedir")"
+        mv "$item" "$movie_basedir/${movie_basename}$get_movie_extension"
+
+        subtitle_formats=(".ass" ".ssa" ".srt" ".pgs" ".sup")
+
+        for subtitle in "${subtitle_formats[@]}"; do
+            ext_subs="$(find "$movie_basedir" -maxdepth 1 -type l -name "*${subtitle}")"
+            if [ -n "$ext_subs" ]; then
+                mv "$ext_subs" "$movie_basedir/${movie_basename}$subtitle"
+            fi
+        done
+
+        extaudio_formats=(".aac" ".ac3" ".dts" ".wma" ".mp3" ".flac")
+
+        for audio_format in "${extaudio_formats[@]}"; do
+            ext_audio="$(find "$movie_basedir" -maxdepth 1 -type l -name "*${audio_format}")"
+            if [ -n "$ext_audio" ]; then
+                mv "$ext_audio" "$movie_basedir/${movie_basename}$audio_format"
+            fi
+        done        
     done
 
 }
@@ -225,7 +248,7 @@ mov-add_source() {
 
     if [ -d "$add_source" ] && [ "$(grep -c -o "$add_source" "$runtime_config")" == 0 ]; then
 
-         echo "mov_source=$add_source" >>"$runtime_config"
+        echo "mov_source=$add_source" >>"$runtime_config"
 
     else
 
