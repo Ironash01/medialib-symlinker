@@ -145,7 +145,7 @@ global_edit_configs() {
 
 }
 
-while getopts 'halwcre:i:s:S:d:' OPTION; do
+while getopts 'halwcrei:s:S:d:' OPTION; do
 
 	case "$OPTION" in
 	h)
@@ -267,8 +267,7 @@ while getopts 'halwcre:i:s:S:d:' OPTION; do
 		esac
 		;;
 	e)
-		choose_edit="$OPTARG"
-		global_edit_configs
+		tv_check_excess
 		;;
 	?)
 		echo 'Invalid option'

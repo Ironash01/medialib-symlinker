@@ -106,6 +106,8 @@ tv-write_config() {
 			search_season="$(curl -s -S -L "https://themoviedb.org$search_query/seasons" \
 			| grep -E '<h2><a href="/tv/[0-9]*/season/[0-9]">.*</a></h2>')"
 
+			search_season_lines="$(echo "$search_season" | wc -l)"
+
 			echo "search_season1: $search_season"
 
 			search_season="$(echo "$search_season" \
@@ -113,6 +115,10 @@ tv-write_config() {
 			| sed -E 's/<h2><a href="\/tv\/[0-9]+\/season\///g; s/\"//g; s/\>.*<\/a>//g; s/<\/h2>//g; s/^ *//g; s/ *$//g')"
 
 			echo "search_season final : $search_season"
+
+			if [ ! -n "$search_season" ] && [ "$search_season_lines -le 2" ]; then
+				search_season=1
+			fi
 
 			{
 
@@ -177,11 +183,13 @@ tv-link_config() {
 
 		done
 
-		if [ -d "$dir"/.././'Season 1' ]; then
+		base_dir="$(dirname "$dir")"
+
+		if ! grep "$base_dir" "$runtime_config" ; then
 
 			find "$dir/../" -type f -name '*.mkv' | sort | while read -r file; do
 
-				if echo "$file" | grep -qEf "$filter_specials"; then
+				if echo "$file" | grep -Ef "$filter_specials"; then
 
 					ln -s "$file" "$tv_link/$tmdb/Extras"
 
@@ -206,6 +214,19 @@ tv-link_config() {
 
 		done
 
+	done
+
+}
+
+tv_check_excess() {
+
+	readarray -t tv_link_list <<< "$(ls "tv_link")"
+
+	for item in "${tv_link_list[@]}"; do
+		showname="$(echo "$item" | sed 's/(.*)$//')"
+		year="$(echo "$item" | grep -Eo '\([0-9]{4}\)$'| sed 's/[()]//g')"
+		search_query="$showname y:$year"
+		
 	done
 
 }
