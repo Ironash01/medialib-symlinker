@@ -15,18 +15,36 @@ mov-write_config() {
 
         if [ -n "$search_query" ]; then
 
-            search_query_year=$(echo "$search_query" | grep -Eo '\(*[0-9]{4}\)*$' |
-                sed -E 's/\(//g; s/\)//g')
+            search_query_year=$(echo "$search_query" | grep -Eo '\(*[0-9]{4}\)*$' \
+            | sed -E 's/\(//g; s/\)//g')
 
             if [ -n "$search_query_year" ]; then
 
                 #echo "$search_query_year"
-                search_query="$(echo "$search_query" | sed -E 's/\(*[0-9]{4}\)*$//g')"
+                search_query="$(echo "$search_query" | sed -E 's/ \(*[0-9]{4}\)*$//g')"
                 search_query="$search_query y:$search_query_year"
-                search_query="$(echo "$search_query" | sed -E 's/[^A-Za-z][0-9]{4} *.*y:/ y:/')"
+
+                if echo "$search_query" | grep -q 'AEW' ; then
+                    search_query="$(echo "$search_query" | sed -E 's/[^A-Za-z][0-9]{4} *.*y:/ y:/')"
+                fi
 
                 echo "Processing search: $search_query"
 
+                # correct search query for common mistakes
+
+                input_query=("ME ME ME" "ME! ME! ME!" "ME!ME!ME!")
+                corrected_query=("MEMEME" "MEMEME" "MEMEME")
+
+                current_array_index=0
+                for iq in "${input_query[@]}"; do
+                    if echo "$search_query" | grep "$iq" ; then
+                        search_query="$(echo "$search_query" \
+                        | sed "s|${iq}|${corrected_query[${current_array_index}]}|g")"
+                    fi
+                    current_array_index="$((current_array_index+1))"
+                done
+
+                echo "$search_query"
                 search_query="$(echo "$search_query" | sed -f "$filter_html" | sed s"/%27//g")"
 
                 #https://www.themoviedb.org/search/movie?query=
