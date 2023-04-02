@@ -21,6 +21,8 @@ s/Remux//
 s/FLAC-TTGA//
 s/Filtered//g
 s/-TTGA//
+s/ - S[eason]*[s]*[_ ]*[0]*[0-9]*[_ ]*[to]*[-]*[S]*[eason]*[s]*[_ ]*[0]*[0-9]*//
+s/S[eason]*[0]*[0-9]+-S[eason]*[0]*[0-9]+//
 s/S[eason]*[0]*[0-9]+//
 s/\(S[eason]*[0]*[0-9]+\)//g
 s/BDRip//g
@@ -50,5 +52,6 @@ s/\( *10bit Tigole\)//g
 s/\( *Silence\)//g
 s/Extended RM4K//g
 s/Half-SBS DTSHD-MA 7 1 - LEGi0N//g
+s/H264//g
 s/^ *//g
 s/ *$//g

@@ -198,7 +198,7 @@ while getopts 'halwcrei:s:S:d:' OPTION; do
 		remove_source="$OPTARG"
 		case "$current_mode" in
 		tv)
-			tv-remove_source
+			tv_remove_source
 			;;
 		mov)
 			mov-remove_source

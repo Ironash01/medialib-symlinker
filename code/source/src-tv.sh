@@ -55,20 +55,25 @@ tv-write_config() {
 
 		#echo "$file_basename"
 
-		if find "$file" -maxdepth 1 -type d | sort | grep -vE '(The Movie|Movie)' \
-		| grep -E "S[eason]*[_ ]*[0]*$season_number" | grep -m 1 -xvF "$file_basename" ; then
+		if find "$file" -maxdepth 1 -type d \
+		| sort \
+		| grep -v -E '(The Movie|Movie)' \
+		| sed "s|$file_basename||" \
+		| grep -E "S[eason]*[_ ]*[0]*$season_number$" ; then
 
 			web_scraper "$file"
 
-
 			{
 
-				echo "$(find "$file" -maxdepth 1 -type d | sort | grep -vE '(The Movie|Movie)' \
-				| grep -E "S[eason]*[_ ]*[0]*$season_number" | grep -m 1 -xvF "$file_basename")"
+				echo "${file_basename}$(find "$file" -maxdepth 1 -type d \
+				| sort \
+				| grep -v -E '(The Movie|Movie)' \
+				| sed "s|$file_basename||" \
+				| grep -E "S[eason]*[_ ]*[0]*$season_number$")"
 				echo "$season_number"
 				echo "$tmdb"
 
-			} >>"$tv_active"
+			} >> "$tv_active"
 
 		elif find "$file" -maxdepth 1 -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi' -o -name '*.mov' -o -name '*.wmv' -o -name '*.flv' \
 		| grep -E "S[eason]*[_ ]*[0]*$season_number" ; then
@@ -90,7 +95,7 @@ tv-write_config() {
 
 		local file="$1"
 
-		for ((season_number = 1; season_number <= 99; ++season_number)); do
+		for ((season_number = 1; season_number <= 99; season_number=season_number+1)); do
 
 			process_season "$file" "$season_number"
 
@@ -108,7 +113,7 @@ tv-write_config() {
 
 			search_season_lines="$(echo "$search_season" | wc -l)"
 
-			echo "search_season1: $search_season"
+			echo "search_season: $search_season"
 
 			search_season="$(echo "$search_season" \
 			| grep -E "$file_keyword" \
@@ -227,6 +232,7 @@ tv_check_excess() {
 		year="$(echo "$item" | grep -Eo '\([0-9]{4}\)$'| sed 's/[()]//g')"
 		search_query="$showname y:$year"
 		
+		
 	done
 
 }
@@ -334,7 +340,7 @@ tv-add_source() {
 
 }
 
-tv-remove_source() {
+tv_remove_source() {
 
 	sed -i "/${remove_source//\//\\/}/d" "$runtime_config"
 

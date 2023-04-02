@@ -1,6 +1,15 @@
 high priority!
 
-find out why the goddamn hatsune miku magical mirai 2020 returned 2019 and why the 2020 in the got removed. FOR FUCKS SAKE
+bug 01A
+find out why the goddamn hatsune miku magical mirai 2020 returned 2019 and why the 2020 in the got removed. FOR FUCKS SAKE [solved]
+    cause:
+        it was an error back in the sed syntax
+bug02A
+fix grep commands having conflict when the "$file" has S01-S[0-9]*
+    cause:
+        when grep -m 1 -x -v -F 'file_basename' matches it matches the first string that is not the base directory and then limit it to one.
+        if a Season number matches a base directory name e.g.: Season 5 when the base directory is showname.S01-S05 it counts every directory technically.
+        therefore, the first output, which is showname.S01-S05/Season 1/ will result instead of showname.SO1-S05/Season 5/
 
 low priority
 
