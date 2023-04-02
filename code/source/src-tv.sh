@@ -162,6 +162,7 @@ tv-write_config() {
 tv-link_config() {
 
 	mkdir "$tv_link"
+	local video_formats=("*.mp4" "*.mkv" "*.avi" "*.wmv" "*.flv")
 
 	read_timer=$(wc -l <"$tv_active")
 
@@ -173,32 +174,56 @@ tv-link_config() {
 
 		mkdir -p "$tv_link/$tmdb/Season $season" "$tv_link/$tmdb/Extras"
 
-		find "$dir" -type f -name '*.mkv' -o -name '*.mp4' -o -name '*.avi'-o -name '*.mov' -o -name '*.wmv' -o -name '*.flv' \
-		| sort | while read -r file; do
+		for cfs in "${video_formats[@]}" ; do
+			find "$dir" -type f -name "$cfs" \
+			| sort \
+			| while read -r file; do
 
-			if echo "$file" | grep -qEf "$filter_specials"; then
+				if echo "$file" \
+				| sed -E 's|.*[ ]*-[ ]*S[eason]*[0]*[0-9]*E[0]*[0-9]*[ ]*-[ ]*.*||g' \
+				| grep -E -f "$filter_specials" ; then
+					echo "special: $file"
+					ln -s "$file" "$tv_link/$tmdb/Extras"
 
-				ln -s "$file" "$tv_link/$tmdb/Extras"
+				else
 
-			else
+					ln -s "$file" "$tv_link/$tmdb/Season $season"
 
-				ln -s "$file" "$tv_link/$tmdb/Season $season"
+				fi
 
-			fi
-
+			done
 		done
 
 		base_dir="$(dirname "$dir")"
 
 		if ! grep "$base_dir" "$runtime_config" ; then
 
-			find "$dir/../" -type f -name '*.mkv' | sort | while read -r file; do
+		echo "Success founding base dir: $base_dir"
 
-				if echo "$file" | grep -Ef "$filter_specials"; then
+			find "$dir/../" -maxdepth 1 -type f -name '*.mkv' | sort | while read -r file; do
+
+				if echo "$file" | grep -E -f "$filter_specials"; then
 
 					ln -s "$file" "$tv_link/$tmdb/Extras"
-
 				fi
+
+
+			done
+
+			#Check for existing extras folder in source directory
+
+			test_extras="$(find "$base_dir" -maxdepth 1 -type d | grep "Extras")"
+
+			for cfs in "${video_formats[@]}" ; do
+
+				find_extras="$(find "$test_extras" -mindepth 1 -type f -name "$cfs")"
+				readarray -t find_extras_arr <<< "$find_extras"
+
+				for file in "${find_extras_arr[@]}" ; do
+
+				ln -s "$file" "$tv_link/$tmdb/Extras"
+
+				done
 
 			done
 

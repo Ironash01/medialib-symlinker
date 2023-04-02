@@ -10,7 +10,10 @@ fix grep commands having conflict when the "$file" has S01-S[0-9]*
         when grep -m 1 -x -v -F 'file_basename' matches it matches the first string that is not the base directory and then limit it to one.
         if a Season number matches a base directory name e.g.: Season 5 when the base directory is showname.S01-S05 it counts every directory technically.
         therefore, the first output, which is showname.S01-S05/Season 1/ will result instead of showname.SO1-S05/Season 5/
-
+improvement_01a
+    changed how extras scans for extras files. it now scans for video files in base directory of a show and searches for exisiting
+    extras folders instead of relying on current_dir/../
+    this will give it more accuracy and fixes a lot of minor problems induced by the last method.
 low priority
 
 add excess episode checker.
