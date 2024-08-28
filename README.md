@@ -4,9 +4,7 @@ Probably no one cares, but this bash script took a lot of effort to make, and th
 The very problem is that as basic features is one thing but as I progressed into developing the program more and adding more functions I realized that I needed an actual programming language
 and a user interface if I wanted to continue developing this project.
 
-As much as it pains me, this project will be discontinued in favor of the next medialib-symlinker, which I plan to be more advanced and easier to manage.
-
-I will not stop until I develop the software I want and make it work the way I want it to. :)
+As much as it pains me, this project will be discontinued in favor of other better options. e.g. Radarr, Sonarr
 
 # Media Library Symlinker
 
